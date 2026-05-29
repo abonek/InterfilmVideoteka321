@@ -1,0 +1,51 @@
+@model WebApplication1.Models.RegisterModel
+@{
+    ViewData["Title"] = "Registracija";
+}
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <h2>Registracija</h2>
+        <p class="subtitle">Kreirajte novi račun za pristup videoteci.</p>
+
+        <form asp-action="Register" method="post" novalidate>
+            @Html.AntiForgeryToken()
+
+            <div asp-validation-summary="ModelOnly" class="alert-danger"></div>
+
+            <div class="form-group">
+                <label asp-for="FullName">Ime i prezime</label>
+                <input asp-for="FullName" class="form-control" type="text" placeholder="Ivo Ivić" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Email">Email</label>
+                <input asp-for="Email" class="form-control" type="email" placeholder="vas@email.com" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Password">Lozinka</label>
+                <input asp-for="Password" class="form-control" type="password" placeholder="najmanje 6 znakova" />
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="ConfirmPassword">Potvrdi lozinku</label>
+                <input asp-for="ConfirmPassword" class="form-control" type="password" placeholder="••••••••" />
+                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width:100%;">Kreiraj račun</button>
+        </form>
+
+        <div class="auth-footer">
+            Već imate račun? <a href="@Url.Action("Login", "Home")">Prijavite se</a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

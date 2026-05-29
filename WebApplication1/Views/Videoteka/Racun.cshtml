@@ -1,0 +1,134 @@
+@model WebApplication1.Models.User
+@{
+    ViewData["Title"] = "Moj račun";
+    var isAdmin = Context.Session.GetString("IsAdmin") == "true";
+}
+
+<div class="page-header">
+    <h1>Moj korisnički račun</h1>
+    <p>Upravljajte profilom i postavkama računa.</p>
+</div>
+
+<!-- Pregled profila -->
+<div class="card" style="max-width:580px; margin-bottom:1.5rem;">
+    <div style="display:flex; align-items:center; gap:20px;">
+        <div style="width:64px; height:64px; background:var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.8rem; color:#000; font-weight:700; flex-shrink:0;">
+            @(Model.FullName?.Length > 0 ? Model.FullName[0].ToString().ToUpper() : "?")
+        </div>
+        <div>
+            <div style="font-size:1.1rem; font-weight:600; color:#fff;">@Model.FullName</div>
+            <div style="font-size:0.85rem; color:var(--text-muted);">@Model.Email</div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+                @(isAdmin ? "Administrator" : "Korisnik") &middot; Član od @Model.CreatedAt.ToString("MMMM yyyy.")
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Promijeni ime -->
+<div class="card" style="max-width:580px; margin-bottom:1.5rem;">
+    <h3 style="margin:0 0 16px; font-size:1rem; font-weight:600; color:#fff;">Promijeni ime</h3>
+
+    @if (TempData["ImeSuccess"] != null)
+    {
+        <div class="alert-success">@TempData["ImeSuccess"]</div>
+    }
+    @if (TempData["ImeError"] != null)
+    {
+        <div class="alert-danger">@TempData["ImeError"]</div>
+    }
+
+    <form method="post" asp-controller="Videoteka" asp-action="PromijeniIme">
+        @Html.AntiForgeryToken()
+        <div class="form-group">
+            <label>Ime i prezime</label>
+            <input type="text" name="fullName" class="form-control" value="@Model.FullName" required />
+        </div>
+        <button type="submit" class="btn-primary">Spremi ime</button>
+    </form>
+</div>
+
+<!-- Promijeni e-mail -->
+<div class="card" style="max-width:580px; margin-bottom:1.5rem;">
+    <h3 style="margin:0 0 16px; font-size:1rem; font-weight:600; color:#fff;">Promijeni e-mail adresu</h3>
+
+    @if (TempData["EmailSuccess"] != null)
+    {
+        <div class="alert-success">@TempData["EmailSuccess"]</div>
+    }
+    @if (TempData["EmailError"] != null)
+    {
+        <div class="alert-danger">@TempData["EmailError"]</div>
+    }
+
+    <form method="post" asp-controller="Videoteka" asp-action="PromijeniEmail">
+        @Html.AntiForgeryToken()
+        <div class="form-group">
+            <label>Trenutna lozinka</label>
+            <input type="password" name="CurrentPassword" class="form-control" placeholder="••••••••" required />
+        </div>
+        <div class="form-group">
+            <label>Nova e-mail adresa</label>
+            <input type="email" name="NewEmail" class="form-control" placeholder="nova@email.com" required />
+        </div>
+        <div class="form-group">
+            <label>Potvrdi novu e-mail adresu</label>
+            <input type="email" name="ConfirmEmail" class="form-control" placeholder="nova@email.com" required />
+        </div>
+        <button type="submit" class="btn-primary">Spremi e-mail</button>
+    </form>
+</div>
+
+<!-- Promijeni lozinku -->
+<div class="card" style="max-width:580px; margin-bottom:1.5rem;">
+    <h3 style="margin:0 0 16px; font-size:1rem; font-weight:600; color:#fff;">Promijeni lozinku</h3>
+
+    @if (TempData["LozinkaSuccess"] != null)
+    {
+        <div class="alert-success">@TempData["LozinkaSuccess"]</div>
+    }
+    @if (TempData["LozinkaError"] != null)
+    {
+        <div class="alert-danger">@TempData["LozinkaError"]</div>
+    }
+
+    <form method="post" asp-controller="Videoteka" asp-action="PromijeniLozinku">
+        @Html.AntiForgeryToken()
+        <div class="form-group">
+            <label>Trenutna lozinka</label>
+            <input type="password" name="CurrentPassword" class="form-control" placeholder="••••••••" required />
+        </div>
+        <div class="form-group">
+            <label>Nova lozinka</label>
+            <input type="password" name="NewPassword" class="form-control" placeholder="najmanje 6 znakova" required minlength="6" />
+        </div>
+        <div class="form-group">
+            <label>Potvrdi novu lozinku</label>
+            <input type="password" name="ConfirmPassword" class="form-control" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn-primary">Spremi lozinku</button>
+    </form>
+</div>
+
+<!-- Opasna zona -->
+<div class="card" style="max-width:580px; border-color:rgba(248,81,73,0.4);">
+    <h3 style="margin:0 0 8px; font-size:1rem; font-weight:600; color:var(--danger);">Opasna zona</h3>
+    <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 16px;">
+        Brisanje računa je trajno i ne može se poništiti. Svi vaši podaci bit će trajno obrisani.
+    </p>
+
+    @if (TempData["BrisanjeError"] != null)
+    {
+        <div class="alert-danger">@TempData["BrisanjeError"]</div>
+    }
+
+    <form method="post" asp-controller="Videoteka" asp-action="ObrisiRacun"
+          onsubmit="return confirm('Jeste li sigurni da želite obrisati račun? Ova radnja se ne može poništiti.');">
+        @Html.AntiForgeryToken()
+        <div class="form-group">
+            <label>Unesite lozinku za potvrdu</label>
+            <input type="password" name="password" class="form-control" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn-danger">Obriši račun</button>
+    </form>
+</div>

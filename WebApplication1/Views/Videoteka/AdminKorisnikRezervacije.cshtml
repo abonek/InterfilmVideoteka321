@@ -1,0 +1,127 @@
+@model List<WebApplication1.Models.Iznajmljivanje>
+@{
+    ViewData["Title"] = "Rezervacije korisnika";
+    var korisnik = ViewBag.Korisnik as WebApplication1.Models.User;
+}
+
+<div class="page-header">
+    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <a href="@Url.Action("Admin", "Videoteka")" class="btn-outline" style="font-size:0.82rem; padding:5px 12px; text-decoration:none;">← Admin panel</a>
+        <div>
+            <h1 style="margin:0;">Rezervacije korisnika</h1>
+            @if (korisnik != null)
+            {
+                <p style="margin:4px 0 0; color:var(--text-muted);">@korisnik.FullName &mdash; @korisnik.Email</p>
+            }
+        </div>
+    </div>
+</div>
+
+@if (TempData["AdminSuccess"] != null)
+{
+    <div class="alert-success" style="max-width:900px;">@TempData["AdminSuccess"]</div>
+}
+@if (TempData["AdminError"] != null)
+{
+    <div class="alert-danger" style="max-width:900px;">@TempData["AdminError"]</div>
+}
+
+<div class="card">
+    @if (!Model.Any())
+    {
+        <p style="color:var(--text-muted);">Korisnik nema aktivnih rezervacija.</p>
+    }
+    else
+    {
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border); color:var(--text-muted); text-align:left;">
+                        <th style="padding:8px 12px;">Film</th>
+                        <th style="padding:8px 12px;">Tip</th>
+                        <th style="padding:8px 12px;">Rezervirano</th>
+                        <th style="padding:8px 12px;">Preuzimanje</th>
+                        <th style="padding:8px 12px;">Rok povrata</th>
+                        <th style="padding:8px 12px;">Status</th>
+                        <th style="padding:8px 12px;">Akcije</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var z in Model)
+                    {
+                        var podizanje = z.DatumPodizanja ?? z.DatumPocetka;
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:10px 12px; color:#fff; font-weight:500;">@z.NazivFilma</td>
+                            <td style="padding:10px 12px; font-size:0.8rem;">
+                                @if (z.TipRezervacije == 0)
+                                { <span style="color:#58a6ff;">Renta</span> }
+                                else
+                                { <span style="color:var(--accent);">Kupnja</span> }
+                            </td>
+                            <td style="padding:10px 12px; color:var(--text-muted); font-size:0.82rem;">
+                                @z.DatumPocetka.ToLocalTime().ToString("dd.MM.yyyy. HH:mm")
+                            </td>
+                            <td style="padding:10px 12px; color:var(--text); font-size:0.82rem; font-weight:500;">
+                                @podizanje.ToLocalTime().ToString("dd.MM.yyyy.")
+                            </td>
+                            <td style="padding:10px 12px; color:var(--text-muted); font-size:0.82rem;">
+                                @if (z.TipRezervacije == 0)
+                                {
+                                    @z.DatumPovrata.ToLocalTime().ToString("dd.MM.yyyy.")
+                                }
+                                else
+                                {
+                                    <span style="color:var(--text-muted);">—</span>
+                                }
+                            </td>
+                            <td style="padding:10px 12px; font-size:0.8rem;">
+                                @if (z.Podignut)
+                                {
+                                    <span style="color:#f0a500;">● Podignut</span>
+                                }
+                                else
+                                {
+                                    <span style="color:#58a6ff;">● Čeka preuzimanje</span>
+                                }
+                            </td>
+                            <td style="padding:10px 12px;">
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    @if (!z.Podignut)
+                                    {
+                                        <form method="post" asp-controller="Videoteka" asp-action="AdminFilmPodignut" style="margin:0;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="iznajmljivanjeId" value="@z.Id" />
+                                            <button type="submit" class="btn-primary" style="font-size:0.78rem; padding:4px 10px;">
+                                                Film podignut
+                                            </button>
+                                        </form>
+
+                                        <form method="post" asp-controller="Videoteka" asp-action="AdminOtkaziRezervaciju" style="margin:0;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="iznajmljivanjeId" value="@z.Id" />
+                                            <button type="submit" class="btn-danger" style="font-size:0.78rem; padding:4px 10px;"
+                                                    data-naziv="@z.NazivFilma" onclick="return confirm('Otkazati rezervaciju za &quot;' + this.dataset.naziv + '&quot;?')">
+                                                Otkaži rezervaciju
+                                            </button>
+                                        </form>
+                                    }
+                                    else if (z.TipRezervacije == 0)
+                                    {
+                                        <form method="post" asp-controller="Videoteka" asp-action="AdminFilmVracen" style="margin:0;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="iznajmljivanjeId" value="@z.Id" />
+                                            <button type="submit" class="btn-primary" style="font-size:0.78rem; padding:4px 10px;"
+                                                    data-naziv="@z.NazivFilma" onclick="return confirm('Označiti film &quot;' + this.dataset.naziv + '&quot; kao vraćen?')">
+                                                Film vraćen
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

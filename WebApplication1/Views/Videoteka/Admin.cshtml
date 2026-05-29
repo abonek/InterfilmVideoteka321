@@ -1,0 +1,376 @@
+@{
+    ViewData["Title"] = "Admin";
+    var filmovi       = ViewBag.Filmovi       as List<WebApplication1.Models.Film>          ?? new();
+    var korisnici     = ViewBag.Korisnici     as List<WebApplication1.Models.User>          ?? new();
+    var iznajmljivanja = ViewBag.Iznajmljivanja as List<WebApplication1.Models.Iznajmljivanje> ?? new();
+    var brIznajmljivanja = ViewBag.BrojIznajmljivanja as Dictionary<int, int> ?? new Dictionary<int, int>();
+
+    int pf = (int)ViewBag.FilmoviStr;
+    int pfUk = (int)ViewBag.FilmoviUkupnoStr;
+    int pk = (int)ViewBag.KorisniciStr;
+    int pkUk = (int)ViewBag.KorisniciUkupnoStr;
+    int pi = (int)ViewBag.IznajmiStr;
+    int piUk = (int)ViewBag.IznajmiUkupnoStr;
+
+    string qf = ViewBag.QF as string ?? string.Empty;
+    string qk = ViewBag.QK as string ?? string.Empty;
+
+    string PfUrl(int p) => Url.Action("Admin", new { pf = p, pk, pi, qf, qk })!;
+    string PkUrl(int p) => Url.Action("Admin", new { pf, pk = p, pi, qf, qk })!;
+    string PiUrl(int p) => Url.Action("Admin", new { pf, pk, pi = p, qf, qk })!;
+}
+
+@* Helper: renderira paginaciju za danu sekciju *@
+@functions {
+    string Paginacija(int trenutna, int ukupno, Func<int, string> urlFn)
+    {
+        if (ukupno <= 1) return string.Empty;
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<div style=\"display:flex;justify-content:center;align-items:center;gap:6px;margin-top:16px;flex-wrap:wrap;\">");
+
+        if (trenutna > 1)
+            sb.Append($"<a href=\"{urlFn(trenutna-1)}\" class=\"btn-outline\" style=\"padding:5px 12px;text-decoration:none;font-size:0.82rem;\">←</a>");
+
+        for (int p = 1; p <= ukupno; p++)
+        {
+            if (p == trenutna)
+                sb.Append($"<span style=\"padding:5px 10px;background:var(--accent);color:#000;border-radius:6px;font-size:0.82rem;font-weight:600;\">{p}</span>");
+            else if (p == 1 || p == ukupno || Math.Abs(p - trenutna) <= 2)
+                sb.Append($"<a href=\"{urlFn(p)}\" class=\"btn-outline\" style=\"padding:5px 10px;text-decoration:none;font-size:0.82rem;\">{p}</a>");
+            else if (Math.Abs(p - trenutna) == 3)
+                sb.Append("<span style=\"color:var(--text-muted);padding:5px 4px;\">…</span>");
+        }
+
+        if (trenutna < ukupno)
+            sb.Append($"<a href=\"{urlFn(trenutna+1)}\" class=\"btn-outline\" style=\"padding:5px 12px;text-decoration:none;font-size:0.82rem;\">→</a>");
+
+        sb.Append("</div>");
+        return sb.ToString();
+    }
+}
+
+<div class="page-header">
+    <h1>Admin panel</h1>
+    <p>Upravljanje filmovima, korisnicima i rezervacijama.</p>
+</div>
+
+@if (TempData["AdminSuccess"] != null)
+{
+    <div class="alert-success" style="max-width:800px;">@TempData["AdminSuccess"]</div>
+}
+@if (TempData["AdminError"] != null)
+{
+    <div class="alert-danger" style="max-width:800px;">@TempData["AdminError"]</div>
+}
+
+<!-- Dodaj film -->
+<div class="card" style="max-width:700px; margin-bottom:2rem;">
+    <h3 style="margin:0 0 16px; font-size:1rem; font-weight:600; color:#fff;">Dodaj novi film</h3>
+    <form method="post" asp-controller="Videoteka" asp-action="DodajFilm">
+        @Html.AntiForgeryToken()
+        <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+            <div class="form-group" style="margin:0;">
+                <label>Naziv filma</label>
+                <input type="text" name="nazovFilma" class="form-control" placeholder="Naziv filma..." required />
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label>Cijena rente (€)</label>
+                <input type="number" name="cijenaRente" class="form-control" placeholder="0.00" step="0.01" min="0" required />
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label>Cijena kupnje (€)</label>
+                <input type="number" name="cijenaKupnje" class="form-control" placeholder="0.00" step="0.01" min="0" required />
+            </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
+            <div class="form-group" style="margin:0;">
+                <label>Količina (kom)</label>
+                <input type="number" name="kolicina" class="form-control" value="1" min="0" step="1" required />
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label>Godina snimanja</label>
+                <input type="number" name="godinaSnimanja" class="form-control" placeholder="npr. 1999" min="1888" max="2030" step="1" />
+            </div>
+        </div>
+        <button type="submit" class="btn-primary" style="margin-top:16px;">Dodaj film</button>
+    </form>
+</div>
+
+<!-- Popis filmova -->
+<div class="card" style="margin-bottom:2rem;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <h3 style="margin:0; font-size:1rem; font-weight:600; color:#fff;">
+            Filmovi
+            @if (pfUk > 1)
+            { <span style="color:var(--text-muted); font-weight:400; font-size:0.85rem;">— stranica @pf od @pfUk</span> }
+        </h3>
+        <form method="get" asp-controller="Videoteka" asp-action="Admin" style="display:flex; gap:8px; align-items:center;">
+            <input type="hidden" name="pk" value="@pk" />
+            <input type="hidden" name="pi" value="@pi" />
+            <input type="hidden" name="qk" value="@qk" />
+            <input type="text" name="qf" value="@qf" class="form-control"
+                   placeholder="Pretraži filmove..." style="font-size:0.85rem; padding:5px 10px; width:200px;" />
+            <button type="submit" class="btn-outline" style="font-size:0.82rem; padding:5px 12px; white-space:nowrap;">Pretraži</button>
+            @if (!string.IsNullOrEmpty(qf))
+            {
+                <a href="@Url.Action("Admin", new { pk, pi, qk })" class="btn-outline"
+                   style="font-size:0.82rem; padding:5px 10px; text-decoration:none; color:var(--text-muted);">✕</a>
+            }
+        </form>
+    </div>
+
+    @if (!filmovi.Any())
+    {
+        <p style="color:var(--text-muted);">Nema filmova u bazi.</p>
+    }
+    else
+    {
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border); color:var(--text-muted); text-align:left;">
+                        <th style="padding:8px 12px;">ID</th>
+                        <th style="padding:8px 12px;">Naziv</th>
+                        <th style="padding:8px 12px;">Godina</th>
+                        <th style="padding:8px 12px;">Renta</th>
+                        <th style="padding:8px 12px;">Kupnja</th>
+                        <th style="padding:8px 12px;">Zaliha</th>
+                        <th style="padding:8px 12px; text-align:center;">Iznajmljeno</th>
+                        <th style="padding:8px 12px;">Akcije</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var film in filmovi)
+                    {
+                        <tr style="border-bottom:1px solid var(--border);" id="red-@film.IdFilma">
+                            <td style="padding:10px 12px; color:var(--text-muted);">@film.IdFilma</td>
+                            <td style="padding:10px 12px; color:#fff; font-weight:500;">@film.NazivFilma</td>
+                            <td style="padding:10px 12px; color:var(--text-muted); font-size:0.85rem;">
+                                @(film.GodinaSnimanja > 0 ? film.GodinaSnimanja.ToString() : "—")
+                            </td>
+                            <td style="padding:10px 12px; color:var(--accent);">@film.CijenaRente.ToString("F2") €</td>
+                            <td style="padding:10px 12px; color:var(--text);">@film.CijenaKupnje.ToString("F2") €</td>
+                            <td style="padding:10px 12px; font-size:0.82rem;">
+                                @{ var dostupno = film.Kolicina - film.Rezervacija; }
+                                @if (film.Kolicina == 0)
+                                { <span style="color:var(--danger); font-size:0.8rem;">Nema na zalihi</span> }
+                                else if (dostupno <= 0)
+                                { <span style="color:#f0a500; font-size:0.8rem;">● Sve iznajmljeno (@film.Kolicina kom)</span> }
+                                else
+                                { <span style="color:#3fb950; font-size:0.8rem;">● @dostupno / @film.Kolicina kom</span> }
+                            </td>
+                            <td style="padding:10px 12px; text-align:center; font-size:0.85rem; color:var(--text-muted);">
+                                @{ var brPuta = brIznajmljivanja.GetValueOrDefault(film.IdFilma, 0); }
+                                @if (brPuta > 0)
+                                { <span style="color:#fff; font-weight:500;">@brPuta</span> }
+                                else
+                                { <span>—</span> }
+                            </td>
+                            <td style="padding:10px 12px;">
+                                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                    <button type="button" class="btn-outline" style="font-size:0.78rem; padding:4px 10px;"
+                                            onclick="toggleEdit(@film.IdFilma)">Uredi</button>
+                                    <form method="post" asp-controller="Videoteka" asp-action="ObrisiFilm" style="margin:0;"
+                                          onsubmit="return confirm('Obrisati film: @film.NazivFilma?')">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="filmId" value="@film.IdFilma" />
+                                        <button type="submit" class="btn-danger" style="font-size:0.78rem; padding:4px 10px;"
+                                                @(film.Rezervacija > 0 ? "disabled title='Film je trenutno iznajmljen'" : "")>
+                                            Obriši
+                                        </button>
+                                    </form>
+                                </div>
+                                <div id="edit-@film.IdFilma" style="display:none; margin-top:10px;">
+                                    <form method="post" asp-controller="Videoteka" asp-action="UrediFilm">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="filmId" value="@film.IdFilma" />
+                                        <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:8px; margin-bottom:8px;">
+                                            <input type="text" name="nazovFilma" class="form-control" value="@film.NazivFilma"
+                                                   style="font-size:0.82rem; padding:6px 10px;" required />
+                                            <input type="number" name="cijenaRente" class="form-control" value="@film.CijenaRente.ToString("F2")"
+                                                   step="0.01" min="0" style="font-size:0.82rem; padding:6px 10px;" required />
+                                            <input type="number" name="cijenaKupnje" class="form-control" value="@film.CijenaKupnje.ToString("F2")"
+                                                   step="0.01" min="0" style="font-size:0.82rem; padding:6px 10px;" required />
+                                        </div>
+                                        <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:8px; align-items:end;">
+                                            <input type="number" name="kolicina" class="form-control" value="@film.Kolicina"
+                                                   min="@film.Rezervacija" step="1" placeholder="Količina"
+                                                   style="font-size:0.82rem; padding:6px 10px;" required />
+                                            <input type="number" name="godinaSnimanja" class="form-control" value="@(film.GodinaSnimanja > 0 ? film.GodinaSnimanja.ToString() : "")"
+                                                   min="1888" max="2030" step="1" placeholder="Godina"
+                                                   style="font-size:0.82rem; padding:6px 10px;" />
+                                            <button type="submit" class="btn-primary" style="font-size:0.78rem; padding:6px 12px; white-space:nowrap;">Spremi</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @Html.Raw(Paginacija(pf, pfUk, PfUrl))
+    }
+</div>
+
+<!-- Korisnici -->
+<div class="card" style="margin-bottom:2rem;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <h3 style="margin:0; font-size:1rem; font-weight:600; color:#fff;">
+            Korisnici
+            @if (pkUk > 1)
+            { <span style="color:var(--text-muted); font-weight:400; font-size:0.85rem;">— stranica @pk od @pkUk</span> }
+        </h3>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <form method="get" asp-controller="Videoteka" asp-action="Admin" style="display:flex; gap:8px; align-items:center;">
+                <input type="hidden" name="pf" value="@pf" />
+                <input type="hidden" name="pi" value="@pi" />
+                <input type="hidden" name="qf" value="@qf" />
+                <input type="text" name="qk" value="@qk" class="form-control"
+                       placeholder="Pretraži korisnike..." style="font-size:0.85rem; padding:5px 10px; width:200px;" />
+                <button type="submit" class="btn-outline" style="font-size:0.82rem; padding:5px 12px; white-space:nowrap;">Pretraži</button>
+                @if (!string.IsNullOrEmpty(qk))
+                {
+                    <a href="@Url.Action("Admin", new { pf, pi, qf })" class="btn-outline"
+                       style="font-size:0.82rem; padding:5px 10px; text-decoration:none; color:var(--text-muted);">✕</a>
+                }
+            </form>
+            <a href="@Url.Action("PreuzmiKorisniciPdf","Videoteka")" class="btn-outline" style="font-size:0.8rem; padding:5px 12px; text-decoration:none;">
+                &#128196; Preuzmi PDF
+            </a>
+        </div>
+    </div>
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+            <thead>
+                <tr style="border-bottom:1px solid var(--border); color:var(--text-muted); text-align:left;">
+                    <th style="padding:8px 12px;">ID</th>
+                    <th style="padding:8px 12px;">Ime</th>
+                    <th style="padding:8px 12px;">Email</th>
+                    <th style="padding:8px 12px;">Uloga</th>
+                    <th style="padding:8px 12px;">Registriran</th>
+                    <th style="padding:8px 12px;">Akcije</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var korisnik in korisnici)
+                {
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:10px 12px; color:var(--text-muted);">@korisnik.Id</td>
+                        <td style="padding:10px 12px; color:#fff;">@korisnik.FullName</td>
+                        <td style="padding:10px 12px; color:var(--text-muted);">@korisnik.Email</td>
+                        <td style="padding:10px 12px;">
+                            @if (korisnik.IsAdmin)
+                            { <span style="color:var(--accent); font-size:0.8rem;">Admin</span> }
+                            else
+                            { <span style="color:var(--text-muted); font-size:0.8rem;">Korisnik</span> }
+                        </td>
+                        <td style="padding:10px 12px; color:var(--text-muted); font-size:0.82rem;">
+                            @korisnik.CreatedAt.ToString("dd.MM.yyyy.")
+                        </td>
+                        <td style="padding:10px 12px;">
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                                <a href="@Url.Action("AdminKorisnikRezervacije", "Videoteka", new { userId = korisnik.Id })"
+                                   class="btn-outline" style="font-size:0.78rem; padding:4px 10px; text-decoration:none;">
+                                    Rezervacije
+                                </a>
+                                @if (korisnik.Id != (int)(Context.Session.GetInt32("UserId") ?? 0))
+                                {
+                                    <form method="post" asp-controller="Videoteka" asp-action="ToggleAdmin" style="margin:0;">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="userId" value="@korisnik.Id" />
+                                        <button type="submit"
+                                                class="@(korisnik.IsAdmin ? "btn-danger" : "btn-outline")"
+                                                style="font-size:0.78rem; padding:4px 10px;"
+                                                data-naziv="@korisnik.FullName"
+                                                data-akcija="@(korisnik.IsAdmin ? "ukloniti" : "dodijeliti")"
+                                                onclick="return confirm(this.dataset.akcija[0].toUpperCase() + this.dataset.akcija.slice(1) + ' admin privilegije korisniku &quot;' + this.dataset.naziv + '&quot;?')">
+                                            @(korisnik.IsAdmin ? "Ukloni admina" : "Daj admina")
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @Html.Raw(Paginacija(pk, pkUk, PkUrl))
+</div>
+
+<!-- Iznajmljivanja -->
+<div class="card">
+    <h3 style="margin:0 0 16px; font-size:1rem; font-weight:600; color:#fff;">
+        Iznajmljivanja
+        @if (piUk > 1)
+        { <span style="color:var(--text-muted); font-weight:400; font-size:0.85rem;">— stranica @pi od @piUk</span> }
+    </h3>
+    @if (!iznajmljivanja.Any())
+    {
+        <p style="color:var(--text-muted);">Nema evidencije iznajmljivanja.</p>
+    }
+    else
+    {
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border); color:var(--text-muted); text-align:left;">
+                        <th style="padding:8px 12px;">Film</th>
+                        <th style="padding:8px 12px;">Tip</th>
+                        <th style="padding:8px 12px;">Korisnik ID</th>
+                        <th style="padding:8px 12px;">Rezervirano</th>
+                        <th style="padding:8px 12px;">Preuzimanje</th>
+                        <th style="padding:8px 12px;">Rok / Istječe</th>
+                        <th style="padding:8px 12px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var z in iznajmljivanja)
+                    {
+                        var podizanje = z.DatumPodizanja ?? z.DatumPocetka;
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:10px 12px; color:#fff;">@z.NazivFilma</td>
+                            <td style="padding:10px 12px; font-size:0.8rem;">
+                                @if (z.TipRezervacije == 0)
+                                { <span style="color:#58a6ff;">Renta</span> }
+                                else
+                                { <span style="color:var(--accent);">Kupnja</span> }
+                            </td>
+                            <td style="padding:10px 12px; color:var(--text-muted);">@z.KorisnikId</td>
+                            <td style="padding:10px 12px; color:var(--text-muted); font-size:0.82rem;">
+                                @z.DatumPocetka.ToLocalTime().ToString("dd.MM.yyyy. HH:mm")
+                            </td>
+                            <td style="padding:10px 12px; color:var(--text); font-size:0.82rem; font-weight:500;">
+                                @podizanje.ToLocalTime().ToString("dd.MM.yyyy.")
+                            </td>
+                            <td style="padding:10px 12px; color:var(--text-muted); font-size:0.82rem;">
+                                @z.DatumPovrata.ToLocalTime().ToString("dd.MM.yyyy.")
+                            </td>
+                            <td style="padding:10px 12px; font-size:0.82rem;">
+                                @if (z.Vratio)
+                                { <span style="color:#3fb950;">&#10003; Završeno</span> }
+                                else if (z.DatumPovrata < DateTime.UtcNow)
+                                { <span style="color:var(--danger);">Isteklo</span> }
+                                else if (podizanje > DateTime.UtcNow)
+                                { <span style="color:#58a6ff;">Čeka preuzimanje</span> }
+                                else
+                                { <span style="color:#f0a500;">Aktivno</span> }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @Html.Raw(Paginacija(pi, piUk, PiUrl))
+    }
+</div>
+
+@section Scripts {
+    <script>
+        function toggleEdit(id) {
+            const el = document.getElementById('edit-' + id);
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+</script>
+}

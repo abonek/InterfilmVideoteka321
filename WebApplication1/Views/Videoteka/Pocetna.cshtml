@@ -1,0 +1,84 @@
+@{
+    ViewData["Title"] = "Početna";
+    var userName = Context.Session.GetString("UserName") ?? "korisniče";
+    var istaknutiFilmovi = ViewBag.IstaknutiFilmovi as List<WebApplication1.Models.Film> ?? new();
+    var brIznajmljivanja = ViewBag.BrojIznajmljivanja as Dictionary<int, int> ?? new Dictionary<int, int>();
+}
+
+<div class="page-header">
+    <h1>Dobrodošli, @userName &#128075;</h1>
+    <p>Što danas želite gledati?</p>
+</div>
+
+<div style="margin-bottom:1.5rem;">
+    <a href="@Url.Action("PreuzmiFilmovePdf","Videoteka")" class="btn-outline" style="font-size:0.85rem; padding:7px 16px; text-decoration:none;">
+        &#128196; Preuzmi popis dostupnih filmova (PDF)
+    </a>
+</div>
+
+<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:2rem;">
+    <div class="card" style="padding:20px; text-align:center;">
+        <div style="font-size:2rem; font-weight:700; color:var(--accent);">@ViewBag.UkupnoFilmova</div>
+        <div style="color:var(--text-muted); font-size:0.85rem; margin-top:4px;">Filmova u kolekciji</div>
+    </div>
+    <div class="card" style="padding:20px; text-align:center;">
+        <div style="font-size:2rem; font-weight:700; color:#3fb950;">@ViewBag.DostupnoFilmova</div>
+        <div style="color:var(--text-muted); font-size:0.85rem; margin-top:4px;">Dostupnih za iznajmljivanje</div>
+    </div>
+    <div class="card" style="padding:20px; text-align:center;">
+        <div style="font-size:2rem; font-weight:700; color:#58a6ff;">@ViewBag.AktivneRezervacije</div>
+        <div style="color:var(--text-muted); font-size:0.85rem; margin-top:4px;">Mojih aktivnih rezervacija</div>
+    </div>
+</div>
+
+@if (istaknutiFilmovi.Any())
+{
+    <h2 style="font-size:1.1rem; font-weight:600; color:#fff; margin:0 0 16px;">Najgledaniji filmovi</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; margin-bottom:2rem;">
+        @foreach (var film in istaknutiFilmovi)
+        {
+            var brPuta = brIznajmljivanja.GetValueOrDefault(film.IdFilma, 0);
+            <div class="card" style="padding:20px;">
+                <div style="font-size:1rem; font-weight:600; color:#fff; margin-bottom:4px;">@film.NazivFilma</div>
+                @if (brPuta > 0)
+                {
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">&#128197; iznajmljeno @brPuta ×</div>
+                }
+                <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">
+                    Renta: <span style="color:var(--accent); font-weight:600;">@film.CijenaRente.ToString("F2") €</span>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px;">
+    <a href="@Url.Action("Pretrazi","Videoteka")" style="text-decoration:none;">
+        <div class="feature-card" style="cursor:pointer;" onmouseover="this.style.borderColor='#f0a500'" onmouseout="this.style.borderColor='#30363d'">
+            <div class="feature-icon">&#127909;</div>
+            <h3>Pretraži filmove</h3>
+            <p>Pronađite film koji tražite iz naše kolekcije.</p>
+        </div>
+    </a>
+    <a href="@Url.Action("TrenutneRezervacije","Videoteka")" style="text-decoration:none;">
+        <div class="feature-card" style="cursor:pointer;" onmouseover="this.style.borderColor='#f0a500'" onmouseout="this.style.borderColor='#30363d'">
+            <div class="feature-icon">&#128197;</div>
+            <h3>Moje rezervacije</h3>
+            <p>Pregledajte vaše trenutno aktivne rezervacije.</p>
+        </div>
+    </a>
+    <a href="@Url.Action("Povijest","Videoteka")" style="text-decoration:none;">
+        <div class="feature-card" style="cursor:pointer;" onmouseover="this.style.borderColor='#f0a500'" onmouseout="this.style.borderColor='#30363d'">
+            <div class="feature-icon">&#128336;</div>
+            <h3>Povijest</h3>
+            <p>Prethodna iznajmljivanja na jednom mjestu.</p>
+        </div>
+    </a>
+    <a href="@Url.Action("Racun","Videoteka")" style="text-decoration:none;">
+        <div class="feature-card" style="cursor:pointer;" onmouseover="this.style.borderColor='#f0a500'" onmouseout="this.style.borderColor='#30363d'">
+            <div class="feature-icon">&#128100;</div>
+            <h3>Moj korisnički račun</h3>
+            <p>Upravljajte profilom i postavkama računa.</p>
+        </div>
+    </a>
+</div>

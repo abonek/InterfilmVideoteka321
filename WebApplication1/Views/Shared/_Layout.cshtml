@@ -1,0 +1,54 @@
+@{
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+    var isAdmin = Context.Session.GetString("IsAdmin") == "true";
+    var userName = Context.Session.GetString("UserName") ?? "";
+    var isLoggedIn = Context.Session.GetInt32("UserId").HasValue;
+}
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interfilm — @ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="brand">
+                <a href="@Url.Action("Pocetna", "Videoteka")">&#127916; Interfilm</a>
+            </div>
+
+            @if (isLoggedIn)
+            {
+                <nav class="main-nav">
+                    <a class="nav-link-item @(action == "Pocetna" ? "active" : "")" href="@Url.Action("Pocetna", "Videoteka")">Početna</a>
+                    <a class="nav-link-item @(action == "Pretrazi" ? "active" : "")" href="@Url.Action("Pretrazi", "Videoteka")">Filmovi</a>
+                    <a class="nav-link-item @(action == "TrenutneRezervacije" ? "active" : "")" href="@Url.Action("TrenutneRezervacije", "Videoteka")">Rezervacije</a>
+                    <a class="nav-link-item @(action == "Povijest" ? "active" : "")" href="@Url.Action("Povijest", "Videoteka")">Povijest</a>
+                    <a class="nav-link-item @(action == "Racun" ? "active" : "")" href="@Url.Action("Racun", "Videoteka")">Korisnički račun</a>
+                    @if (isAdmin)
+                    {
+                        <a class="nav-link-item @(action == "Admin" ? "active" : "")" href="@Url.Action("Admin", "Videoteka")">Admin</a>
+                    }
+                    <span class="nav-user">&#128100; @userName</span>
+                    <form method="post" asp-controller="Home" asp-action="Logout" style="margin:0;">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn-logout">Odjava</button>
+                    </form>
+                </nav>
+            }
+        </div>
+    </header>
+
+    <main>
+        @RenderBody()
+    </main>
+
+    <footer class="site-footer">
+        © @DateTime.Now.Year Interfilm Videoteka
+    </footer>
+
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

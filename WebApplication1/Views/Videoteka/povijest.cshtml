@@ -1,0 +1,85 @@
+@model List<WebApplication1.Models.Iznajmljivanje>
+@{
+    ViewData["Title"] = "Povijest";
+}
+
+<div class="page-header">
+    <h1>Povijest iznajmljivanja</h1>
+    <p>Pregled svih prethodnih najmova.</p>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="empty-state">
+        <div class="empty-icon">&#128336;</div>
+        <h3>Nema prethodnih najmova</h3>
+        <p>Vaša povijest iznajmljivanja pojavit će se ovdje.</p>
+        <a href="@Url.Action("Pretrazi","Videoteka")" class="btn-primary" style="display:inline-block; margin-top:20px;">Pregledaj filmove</a>
+    </div>
+}
+else
+{
+    <div style="max-width:700px;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom:1px solid var(--border); color:var(--text-muted); font-size:0.82rem; text-align:left;">
+                    <th style="padding:10px 12px;">Film</th>
+                    <th style="padding:10px 12px;">Tip</th>
+                    <th style="padding:10px 12px;">Datum</th>
+                    <th style="padding:10px 12px;">Rok / Završeno</th>
+                    <th style="padding:10px 12px; text-align:right;">Cijena</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var zapis in Model)
+                {
+                    var podizanje = zapis.DatumPodizanja ?? zapis.DatumPocetka;
+                    <tr style="border-bottom:1px solid var(--border); @(zapis.Otkazano ? "opacity:0.6;" : "")">
+                        <td style="padding:12px; color:#fff; font-weight:500;">@zapis.NazivFilma</td>
+                        <td style="padding:12px; font-size:0.82rem;">
+                            @if (zapis.Otkazano)
+                            { <span style="color:var(--danger);">Otkazano</span> }
+                            else if (zapis.TipRezervacije == 0)
+                            { <span style="color:#58a6ff;">Najam</span> }
+                            else
+                            { <span style="color:var(--accent);">Kupnja</span> }
+                        </td>
+                        <td style="padding:12px; color:var(--text-muted); font-size:0.85rem;">
+                            @podizanje.ToLocalTime().ToString("dd.MM.yyyy.")
+                        </td>
+                        <td style="padding:12px; color:var(--text-muted); font-size:0.85rem;">
+                            @if (zapis.Otkazano)
+                            { <span>—</span> }
+                            else if (zapis.DatumVracanja.HasValue)
+                            { @zapis.DatumVracanja.Value.ToLocalTime().ToString("dd.MM.yyyy.") }
+                            else
+                            { @zapis.DatumPovrata.ToLocalTime().ToString("dd.MM.yyyy.") }
+                        </td>
+                        <td style="padding:12px; text-align:right; font-weight:600;">
+                            @if (zapis.Otkazano)
+                            { <span style="color:var(--text-muted); font-size:0.82rem; font-weight:400;">—</span> }
+                            else
+                            {
+                                <span style="color:var(--accent);">@((zapis.CijenaRente + zapis.KasnjenjaNaknada).ToString("F2")) €</span>
+                                @if (zapis.KasnjenjaNaknada > 0)
+                                {
+                                    <div style="font-size:0.72rem; color:var(--danger); font-weight:400;">+@zapis.KasnjenjaNaknada.ToString("F2") € kašnjenje</div>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="padding:12px; color:var(--text-muted); font-size:0.85rem;">
+                        Ukupno: @Model.Count(z => !z.Otkazano) najmova, @Model.Count(z => z.Otkazano) otkazano
+                    </td>
+                    <td style="padding:12px; text-align:right; color:#fff; font-weight:700;">
+                        @Model.Where(z => !z.Otkazano).Sum(z => z.CijenaRente + z.KasnjenjaNaknada).ToString("F2") €
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+}

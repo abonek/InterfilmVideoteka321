@@ -1,0 +1,207 @@
+@model List<WebApplication1.Models.Film>
+@{
+    ViewData["Title"] = "Filmovi";
+    var q = ViewData["Query"] as string ?? "";
+    var sort = ViewData["Sort"] as string ?? "az";
+    var mojiFilmovi = ViewBag.MojiFilmovi as HashSet<int> ?? new HashSet<int>();
+    var brIznajmljivanja = ViewBag.BrojIznajmljivanja as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var danas = DateTime.Today.ToString("yyyy-MM-dd");
+    var maxDatum = DateTime.Today.AddDays(30).ToString("yyyy-MM-dd");
+    var trenutnaStr = (int)ViewBag.TrenutnaStr;
+    var ukupnoStr = (int)ViewBag.UkupnoStr;
+    var ukupnoFilmova = (int)ViewBag.UkupnoFilmova;
+
+    string PageUrl(int p) => Url.Action("Pretrazi", "Videoteka", new { q, sort, page = p })!;
+    string SortUrl(string s) => Url.Action("Pretrazi", "Videoteka", new { q, sort = s, page = 1 })!;
+}
+
+<div class="page-header">
+    <h1>Filmovi</h1>
+    <p>Odaberite datum preuzimanja — iznajmljeni filmovi se vraćaju u roku od maksimalno 7 dana nakon preuzimanja.</p>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert-success" style="max-width:800px;">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert-danger" style="max-width:800px;">@TempData["Error"]</div>
+}
+
+<!-- Pretraga i sortiranje -->
+<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px;">
+    <form method="get" action="@Url.Action("Pretrazi","Videoteka")" style="display:flex; gap:8px; flex:1; min-width:220px;">
+        <input type="hidden" name="sort" value="@sort" />
+        <input type="text" name="q" value="@q" class="form-control" placeholder="Unesite naziv filma..." style="flex:1;" />
+        <button type="submit" class="btn-primary">Pretraži</button>
+        @if (!string.IsNullOrWhiteSpace(q))
+        {
+            <a href="@Url.Action("Pretrazi","Videoteka", new { sort })" class="btn-outline">Prikaži sve</a>
+        }
+    </form>
+
+    <div style="display:flex; align-items:center; gap:8px;">
+        <label style="color:var(--text-muted); font-size:0.85rem; white-space:nowrap;">Sortiraj:</label>
+        @{
+            var sortOpcije = new[] {
+                ("az",           "A → Z"),
+                ("za",           "Z → A"),
+                ("renta-asc",    "Renta: najniža"),
+                ("renta-desc",   "Renta: najviša"),
+                ("kupnja-asc",   "Kupnja: najniža"),
+                ("kupnja-desc",  "Kupnja: najviša"),
+                ("godina-asc",   "Godina: najstariji"),
+                ("godina-desc",  "Godina: najnoviji"),
+            };
+        }
+        <select onchange="window.location=this.value" style="background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:7px 10px; font-size:0.85rem; cursor:pointer;">
+            @foreach (var (val, label) in sortOpcije)
+            {
+                var url = SortUrl(val);
+                var sel = val == sort ? " selected" : "";
+                @Html.Raw($"<option value=\"{url}\"{sel}>{label}</option>")
+            }
+        </select>
+    </div>
+</div>
+
+<!-- Info o rezultatima -->
+@if (!string.IsNullOrWhiteSpace(q))
+{
+    <p style="color:var(--text-muted); margin-bottom:16px;">
+        Rezultati za: <strong style="color:var(--text);">@q</strong> — @ukupnoFilmova film(ova)
+    </p>
+}
+else
+{
+    <p style="color:var(--text-muted); margin-bottom:16px; font-size:0.85rem;">
+        Prikazano @Model.Count od @ukupnoFilmova filmova
+        @if (ukupnoStr > 1) { <span>— stranica @trenutnaStr od @ukupnoStr</span> }
+    </p>
+}
+
+@if (!Model.Any())
+{
+    <div class="empty-state">
+        <div class="empty-icon">&#128269;</div>
+        <h3>Nema rezultata</h3>
+        <p>Pokušajte s drugim pojmom pretrage.</p>
+    </div>
+}
+else
+{
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:20px;">
+        @foreach (var film in Model)
+        {
+            var mojaRezervacija = mojiFilmovi.Contains(film.IdFilma);
+            var dostupno = film.Kolicina - film.Rezervacija;
+            var dostupan = film.Kolicina > 0 && dostupno > 0;
+            var brPuta = brIznajmljivanja.GetValueOrDefault(film.IdFilma, 0);
+
+            <div class="card" style="padding:24px; display:flex; flex-direction:column; gap:14px;">
+                <div>
+                    <div style="font-size:1rem; font-weight:600; color:#fff; margin-bottom:4px;">@film.NazivFilma</div>
+                    @if (film.GodinaSnimanja > 0)
+                    {
+                        <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">@film.GodinaSnimanja. g.</div>
+                    }
+                    <div style="display:flex; gap:16px; font-size:0.85rem; color:var(--text-muted);">
+                        <span>Renta/7 dana: <strong style="color:var(--accent);">@film.CijenaRente.ToString("F2") €</strong></span>
+                        <span>Kupnja: <strong style="color:#fff;">@film.CijenaKupnje.ToString("F2") €</strong></span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                        <span style="font-size:0.78rem; color:@(dostupan ? "#3fb950" : "var(--danger)");">
+                            @if (film.Kolicina == 0)
+                            { <span>Nema na zalihi</span> }
+                            else
+                            { <span>Dostupno: @dostupno / @film.Kolicina</span> }
+                        </span>
+                        @if (brPuta > 0)
+                        {
+                            <span style="font-size:0.75rem; color:var(--text-muted);">&#128197; @brPuta ×</span>
+                        }
+                    </div>
+                </div>
+
+                @if (mojaRezervacija)
+                {
+                    <span style="display:inline-block; background:rgba(88,166,255,0.15); border:1px solid rgba(88,166,255,0.4); color:#58a6ff; padding:6px 12px; border-radius:6px; font-size:0.82rem;">
+                        &#10003; Vaša rezervacija
+                    </span>
+                }
+                else if (dostupan)
+                {
+                    <form method="post" asp-controller="Videoteka" asp-action="RezervacijaFilma" style="margin:0;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="filmId" value="@film.IdFilma" />
+
+                        <div class="form-group" style="margin-bottom:10px;">
+                            <label style="font-size:0.82rem; color:var(--text-muted); margin-bottom:4px; display:block;">Datum preuzimanja</label>
+                            <input type="date" name="datumPodizanja"
+                                   class="form-control"
+                                   value="@danas"
+                                   min="@danas"
+                                   max="@maxDatum"
+                                   required
+                                   style="font-size:0.88rem; padding:7px 10px;" />
+                        </div>
+
+                        <div style="display:flex; gap:16px; margin-bottom:12px;">
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem; color:var(--text-muted);">
+                                <input type="radio" name="tip" value="0" checked style="accent-color:var(--accent);" />
+                                Iznajmi (7 dana)
+                            </label>
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem; color:var(--text-muted);">
+                                <input type="radio" name="tip" value="1" style="accent-color:var(--accent);" />
+                                Rezerviraj kupnju
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn-primary" style="width:100%; font-size:0.88rem; padding:9px;">
+                            Rezerviraj
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <span style="display:inline-block; background:rgba(248,81,73,0.1); border:1px solid rgba(248,81,73,0.3); color:var(--danger); padding:6px 12px; border-radius:6px; font-size:0.82rem;">
+                        Nije dostupno
+                    </span>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Paginacija -->
+    @if (ukupnoStr > 1)
+    {
+        <div style="display:flex; justify-content:center; align-items:center; gap:6px; margin-top:32px; flex-wrap:wrap;">
+            @if (trenutnaStr > 1)
+            {
+                <a href="@PageUrl(trenutnaStr - 1)" class="btn-outline" style="padding:6px 14px; text-decoration:none; font-size:0.88rem;">← Prethodna</a>
+            }
+
+            @for (int p = 1; p <= ukupnoStr; p++)
+            {
+                if (p == trenutnaStr)
+                {
+                    <span style="padding:6px 12px; background:var(--accent); color:#000; border-radius:6px; font-size:0.88rem; font-weight:600;">@p</span>
+                }
+                else if (p == 1 || p == ukupnoStr || Math.Abs(p - trenutnaStr) <= 2)
+                {
+                    <a href="@PageUrl(p)" class="btn-outline" style="padding:6px 12px; text-decoration:none; font-size:0.88rem;">@p</a>
+                }
+                else if (Math.Abs(p - trenutnaStr) == 3)
+                {
+                    <span style="color:var(--text-muted); padding:6px 4px;">…</span>
+                }
+            }
+
+            @if (trenutnaStr < ukupnoStr)
+            {
+                <a href="@PageUrl(trenutnaStr + 1)" class="btn-outline" style="padding:6px 14px; text-decoration:none; font-size:0.88rem;">Sljedeća →</a>
+            }
+        </div>
+    }
+}

@@ -1,0 +1,30 @@
+@{
+    ViewData["Title"] = "Dobrodošli";
+}
+
+<div class="hero">
+    <h1>Dobrodošli u <span>Interfilm</span></h1>
+    <p>Pregledajte, rezervirajte i kupujte filmove na jednom mjestu.</p>
+    <div class="hero-buttons">
+        <a class="btn-primary" href="@Url.Action("Login", "Home")">Prijava</a>
+        <a class="btn-outline" href="@Url.Action("Register", "Home")">Registracija</a>
+    </div>
+
+    <div class="hero-features">
+        <div class="feature-card">
+            <div class="feature-icon">&#127909;</div>
+            <h3>Veliki izbor filmova</h3>
+            <p>Pronađite najnovije i klasične filmove u našoj bogatoj kolekciji.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128197;</div>
+            <h3>Laka rezervacija</h3>
+            <p>Rezervirajte film u nekoliko klikova i preuzmite ga kada vam odgovara.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128274;</div>
+            <h3>Sigurni račun</h3>
+            <p>Vaši podaci su zaštićeni, a povijest kupnji uvijek dostupna.</p>
+        </div>
+    </div>
+</div>

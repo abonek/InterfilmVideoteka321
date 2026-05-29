@@ -1,0 +1,148 @@
+@model List<WebApplication1.Models.Iznajmljivanje>
+@{
+    ViewData["Title"] = "Rezervacije";
+    var sada = DateTime.UtcNow;
+    var isAdmin = (bool)(ViewBag.IsAdmin ?? false);
+}
+
+<div class="page-header">
+    <h1>Moje aktivne rezervacije</h1>
+    <p>Iznajmljeni filmovi i rezervacije za kupnju.</p>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert-success" style="max-width:720px;">@TempData["Success"]</div>
+}
+
+@if (!Model.Any())
+{
+    <div class="empty-state">
+        <div class="empty-icon">&#128197;</div>
+        <h3>Nema aktivnih rezervacija</h3>
+        <p>Kada rezervirate film, pojavit će se ovdje.</p>
+        <a href="@Url.Action("Pretrazi","Videoteka")" class="btn-primary" style="display:inline-block; margin-top:20px;">Pregledaj filmove</a>
+    </div>
+}
+else
+{
+    <div style="display:flex; flex-direction:column; gap:14px; max-width:720px;">
+        @foreach (var zapis in Model)
+        {
+            var podizanje = zapis.DatumPodizanja ?? zapis.DatumPocetka;
+            var preuzeto = podizanje <= sada;
+            var jeRenta = zapis.TipRezervacije == 0;
+
+            // Statusne vrijednosti
+            string statusTekst;
+            string statusBoja;
+
+            if (jeRenta)
+            {
+                if (!preuzeto)
+                {
+                    var danaDoPodizanja = (int)Math.Ceiling((podizanje - sada).TotalDays);
+                    statusTekst = danaDoPodizanja == 0
+                        ? "Preuzimanje danas!"
+                        : $"Čeka preuzimanje za {danaDoPodizanja} dan(a)";
+                    statusBoja = "#58a6ff";
+                }
+                else
+                {
+                    var danaDoPovrata = (int)Math.Ceiling((zapis.DatumPovrata - sada).TotalDays);
+                    statusBoja = danaDoPovrata <= 1 ? "var(--danger)" : danaDoPovrata <= 3 ? "#f0a500" : "#3fb950";
+                    if (danaDoPovrata <= 0)
+                    {
+                        int kasniDana = (int)Math.Ceiling((sada - zapis.DatumPovrata).TotalDays);
+                        float naknada = kasniDana * 0.5f;
+                        statusTekst = kasniDana > 0
+                            ? $"Kasni {kasniDana} dan(a) — naknada: {naknada:F2} €"
+                            : "Istekao rok — vratite danas!";
+                    }
+                    else
+                    {
+                        statusTekst = danaDoPovrata == 1 ? "Vraćate sutra!" : $"Preostaje {danaDoPovrata} dana";
+                    }
+                }
+            }
+            else
+            {
+                if (!preuzeto)
+                {
+                    var danaDoPodizanja = (int)Math.Ceiling((podizanje - sada).TotalDays);
+                    statusTekst = danaDoPodizanja == 0
+                        ? "Preuzimanje danas!"
+                        : $"Kupnja — dolazak za {danaDoPodizanja} dan(a)";
+                    statusBoja = "var(--accent)";
+                }
+                else
+                {
+                    statusTekst = "Preuzimanje prošlo — film čeka";
+                    statusBoja = "#f0a500";
+                }
+            }
+
+            var mozePovrat = !zapis.Podignut || isAdmin;
+            var kasniDanaConfirm = (jeRenta && zapis.Podignut && sada > zapis.DatumPovrata)
+                ? (int)Math.Ceiling((sada - zapis.DatumPovrata).TotalDays)
+                : 0;
+            var gumbTekst = jeRenta && zapis.Podignut ? "Vrati film" : "Otkaži rezervaciju";
+            var confirmTekst = jeRenta && zapis.Podignut
+                ? kasniDanaConfirm > 0
+                    ? $"Vraćate film: {zapis.NazivFilma}? Naplaćuje se {(kasniDanaConfirm * 0.5f):F2} € za kašnjenje."
+                    : $"Vraćate film: {zapis.NazivFilma}?"
+                : $"Otkazati rezervaciju za: {zapis.NazivFilma}?";
+
+            <div class="card" style="padding:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:200px;">
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                            <div style="font-size:1rem; font-weight:600; color:#fff;">@zapis.NazivFilma</div>
+                            @if (jeRenta)
+                            {
+                                <span style="background:rgba(88,166,255,0.15); border:1px solid rgba(88,166,255,0.3); color:#58a6ff; padding:2px 8px; border-radius:4px; font-size:0.72rem; white-space:nowrap;">RENTA</span>
+                            }
+                            else
+                            {
+                                <span style="background:rgba(240,165,0,0.15); border:1px solid rgba(240,165,0,0.3); color:var(--accent); padding:2px 8px; border-radius:4px; font-size:0.72rem; white-space:nowrap;">KUPNJA</span>
+                            }
+                        </div>
+
+                        <div style="font-size:0.82rem; color:var(--text-muted); line-height:1.7;">
+                            Rezervirano: @zapis.DatumPocetka.ToLocalTime().ToString("dd.MM.yyyy. HH:mm")
+                            <br />
+                            Preuzimanje: <strong style="color:var(--text);">@podizanje.ToLocalTime().ToString("dd.MM.yyyy.")</strong>
+                            @if (jeRenta)
+                            {
+                                <br />
+                                <span>Rok povrata: <strong style="color:var(--text);">@zapis.DatumPovrata.ToLocalTime().ToString("dd.MM.yyyy.")</strong></span>
+                            }
+                        </div>
+
+                        <div style="font-size:0.85rem; font-weight:600; color:@statusBoja; margin-top:8px;">
+                            @statusTekst
+                        </div>
+                    </div>
+
+                    @if (mozePovrat)
+                    {
+                        <form method="post" asp-controller="Videoteka" asp-action="VratiFilm" style="margin:0; flex-shrink:0; align-self:center;">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="iznajmljivanjeId" value="@zapis.Id" />
+                            <button type="submit" class="btn-outline" style="font-size:0.82rem; padding:7px 14px;"
+                                    onclick="return confirm('@confirmTekst')">
+                                @gumbTekst
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <span style="font-size:0.78rem; color:var(--text-muted); flex-shrink:0; align-self:center; text-align:right;">
+                            Povrat potvrđuje<br />admin u videoteci
+                        </span>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
